@@ -1,9 +1,9 @@
 #lang racket
 
-(struct state (n))
+(struct state (width height))
 
 (define (make-state)
-  (state 0))
+  (state #f #f))
 
 (provide
  state

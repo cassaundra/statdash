@@ -1,10 +1,12 @@
 #lang racket
 
-(require "state.rkt")
+(require raart/lux-chaos
+         "state.rkt")
 
-(define (handle-input state evt)
-  (case evt
-    [("q") #f]
-    [else state]))
+(define (handle-input current-state evt)
+  (match evt
+    ["q" #f]
+    [(struct screen-size-report (height width)) (state width height)]
+    [_ current-state]))
 
 (provide handle-input)

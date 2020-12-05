@@ -1,13 +1,13 @@
 #lang racket
 
-(require racket/gui/base)
-(require charterm
+(require "clock.rkt"
+         "input.rkt"
+         "state.rkt"
+         charterm
          lux
          raart
          raart/lux-chaos
-         "clock.rkt"
-         "state.rkt"
-         "input.rkt")
+         racket/gui/base)
 
 (define (make-terminal-view)
   (terminal-view (make-state)))
@@ -29,9 +29,13 @@
    (define (word-tick w)
      w)
    (define (word-output w)
-     ;; (match-define (game (list px py _)) (terminal-view-state w))
-     (without-cursor
-      (vappend (text (format "Current time: ~a" (timestamp)))))
+     (match-define (state width height) (terminal-view-state w))
+     (if (not (eq? width #f))
+       (without-cursor
+        (matte width height
+               (vappend #:halign 'center
+                        (text (~a (timestamp))))))
+       (blank))
      )
    (define (word-return w)
      w)])

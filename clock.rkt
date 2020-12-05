@@ -4,6 +4,6 @@
          gregor/time)
 
 (define (timestamp)
-  (~t (current-time) "hh:mm:ss"))
+  (~t (current-time) "HH:mm:ss"))
 
 (provide timestamp)
