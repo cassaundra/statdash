@@ -1,31 +1,57 @@
 #lang racket
 
+(require "buffer/buffer.rkt"
+         raart)
+
 (define current-state (make-parameter #f))
-;; (define current-interaction (make-parameter #f))
 
 (define interaction%
   (class object%
-    (init proc)
-
-    ;; TODO AS MODULE
-
     (super-new)
+    (field [proc #f])
+    (define/public (complete [value #f])
+      (when proc
+        (proc value)))))
 
-    (field [current-proc proc]
-           [current-reader #f])
+(define interaction/read-string%
+  (class* interaction% (buffer<%>)
+    (super-new)
+    (init-field prompt [value ""])
 
-    (define/public (get-reader)
-      current-reader)
-    ;; (define/public (read-string prompt)
-    ;; (set! current-reader (reader prompt ""))
-    ;; (abort-interactive))
-    (define/public (complete [success #t])
-      (when success
-        (current-proc (reader-value current-reader)))
-      (set! current-reader #f))
+    (define/public (tick)
+      void)
+    (define/public (handle-input evt)
+      (cond
+        [(string=? evt "C-M") (send this complete value)]
+        [(= 1 (string-length evt)) (set! value (string-append value evt))]))
+    (define/public (render size)
+      (text (format "~a: ~a" prompt value)))
     ))
 
-(struct reader (prompt value) #:mutable #:transparent)
+(define (read-string prompt)
+  (let ([state (current-state)]
+        [ia (new interaction/read-string% [prompt prompt])])
+    (send state run-interaction ia)))
+
+(define interaction/read-boolean%
+  (class* interaction% (buffer<%>)
+    (super-new)
+    (init-field prompt)
+
+    (define/public (tick)
+      void)
+    (define/public (handle-input evt)
+      (case evt
+        [("y" "Y") (send this complete #t)]
+        [("n" "N") (send this complete #f)]))
+    (define/public (render size)
+      (text (format "~a (y or n)" prompt)))
+    ))
+
+(define (read-boolean prompt)
+  (let ([state (current-state)]
+        [ia (new interaction/read-boolean% [prompt prompt])])
+    (send state run-interaction ia)))
 
 (define interactive-prompt-tag
   (make-continuation-prompt-tag 'interactive))
@@ -38,21 +64,6 @@
    (λ (k)
      (abort-current-continuation interactive-prompt-tag k))
    interactive-prompt-tag))
-
-(define (read-string prompt)
-  (let* ([state (current-state)]
-         [ia (and state (send state current-interaction))])
-    (cond
-      [ia
-       (set-field! current-reader ia (reader prompt ""))
-       (abort-interactive)]
-      [else ""])))
-
-(define (complete-interaction)
-  (let* ([state (current-state)]
-         [ia (and state (send state current-interaction))])
-    (when ia
-      (send ia complete))))
 
 (define state%
   (class object%
@@ -74,37 +85,44 @@
     (define/public (set-size new-size)
       (set! size new-size))
 
-    ;; --- Modules ---
+    ;; --- Buffers ---
 
-    ;; (define current-module (new clock%))
+    (define buffers empty)
+
+    (define/public (get-buffers)
+      buffers)
+    (define/public (get-focused-buffer)
+      ;; TODO
+      (car buffers))
+    (define/public (push-buffer buffer)
+      (set! buffers (cons buffer buffers)))
 
     ;; --- Interactions ---
 
     (define interactions empty)
 
     (define/public (call-interactively proc)
-      (define interaction (new interaction% [proc proc]))
       (call-with-continuation-prompt
        (λ ()
-         ;; push interaction
-         (set! interactions (cons interaction interactions))
-         ;; call
-         (define result (proc))
-         ;; pop interaction
-         (set! interactions (cdr interactions))
-         ;; result
-         result)
+         (proc))
        interactive-prompt-tag
        (λ (k)
-         (set-field! current-proc interaction k))
+         (set-field! proc (send this current-interaction) k))
        ))
+    (define/public (run-interaction ia)
+      ;; push interaction
+      (set! interactions (cons ia interactions))
+      ;; call
+      (define result (abort-interactive))
+      ;; pop interaction
+      (set! interactions (cdr interactions))
+      result)
     (define/public (current-interaction)
       (and (not (empty? interactions)) (car interactions)))
     ))
 
 (provide state%
-         (struct-out reader)
          interactive
-         complete-interaction
          read-string
+         read-boolean
          current-state)

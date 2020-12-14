@@ -1,15 +1,15 @@
 #lang racket
 
 (require "input.rkt"
-         "module/clock.rkt"
+         "buffer/clock.rkt"
          "state.rkt"
          lux
          raart)
 
-(define clock (new clock%))
-
 (define (make-terminal-view)
-  (terminal-view (new state%)))
+  (let ([state (new state%)])
+    (send state push-buffer (new clock%))
+    (terminal-view state)))
 
 (struct terminal-view (state)
   #:methods gen:word
@@ -23,8 +23,10 @@
          (handle-input e))
        (and (send state is-alive) (terminal-view state)))
      )
+
    (define (word-tick w)
-     ;; execute top coroutine if existent and not currently entering data
+     (for ([buffer (send (terminal-view-state w) get-buffers)])
+       (send buffer tick))
      w)
    (define (word-output w)
      ;; (match-define (state size _) (terminal-view-state w))
@@ -56,16 +58,12 @@
              (without-cursor
               (place-at (matte (car size) (cdr size)
                                (vappend #:halign 'center
-                                        (send clock render size)))
-                        0 0 (draw-string-reader))))
+                                        (send (send state get-focused-buffer) render size)))
+                        0 0 (draw-interaction state size))))
   )
 
-(define (draw-string-reader)
-  (bind-draw [interaction (send (current-state) current-interaction)]
-             (let ([reader (send interaction get-reader)])
-               (text (format "~a: ~a"
-                             (reader-prompt reader)
-                             (reader-value reader))))
-             
-             ))
+(define (draw-interaction state size)
+  (bind-draw [ia (send state current-interaction)]
+             (send ia render size)))
+
 (provide make-terminal-view)
