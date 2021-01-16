@@ -8,7 +8,7 @@
   (with-handlers
     ([exn:fail?
       (lambda (exn)
-        (system "stty -raw && clear")
+        (system "/bin/stty -raw && clear")
         (displayln exn))])
     (proc)))
 

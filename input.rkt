@@ -6,8 +6,8 @@
 (define (handle-input evt)
   (let ([state (current-state)])
     (match evt
-     [(struct screen-size-report (height width))
-      (send state set-size (cons width height))]
+     ;; [(struct screen-size-report (height width))
+     ;;  (send state set-size (cons width height))]
      ["C-C" (send state kill)]
      [else
       (cond
